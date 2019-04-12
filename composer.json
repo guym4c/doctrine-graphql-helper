@@ -1,0 +1,25 @@
+{
+    "name": "guym4c/doctrine-graphql-helper",
+    "description": "A helper package for generating a GraphQL schema from Doctrine entities",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/guym4c/doctrine-graphql-helper",
+    "keywords": ["graphql", "doctrine"],
+    "authors": [
+        {
+            "name": "Guy Mac",
+            "email": "hello@guymac.eu",
+            "role": "Developer"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+        "psr-0": {
+            "GraphQL\\Doctrine\\Helper\\": "src/"
+        }
+    },
+    "require": {
+        "webonyx/graphql-php": "^0.13.0",
+        "ecodev/graphql-doctrine": "^6.1"
+    }
+}
