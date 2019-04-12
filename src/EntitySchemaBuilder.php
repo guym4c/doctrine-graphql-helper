@@ -17,34 +17,43 @@ use ReflectionClass;
 use ReflectionException;
 use GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
 
-class EntitySchema {
+class EntitySchemaBuilder {
 
     const DEFAULT_RESULT_LIMIT = 50;
 
+    /** @var Schema */
+    private $schema;
+
+    /** @var string|null */
     private $userEntity;
 
+    /** @var int */
     private $resultLimit;
 
+    /** @var EntityManager */
     private $em;
 
+    /** @var Types */
     private $types;
 
     /**
      * EntitySchema constructor.
-     * @param EntityManager $em An instance of the entity manager.
-     * @param string        $userEntity The class name of the user entity. If this is null, all permissions will be given to all users.
+     * @param EntityManager $em          An instance of the entity manager.
+     * @param array         $entities    An associative array of the plural form to the fully qualified class name of the entity.
+     * @param string        $userEntity  The class name of the user entity. If this is null, all permissions will be given to all users.
      * @param int           $resultLimit The maximum amount of results that can be returned by the API.
      */
-    public function __construct(EntityManager $em, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
+    public function __construct(EntityManager $em, array $entities, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
         $this->userEntity = $userEntity;
         $this->resultLimit = $resultLimit;
         $this->em = $em;
         $this->types = new Types($this->em);
+        $this->build($entities);
     }
 
-    public static function getServer(Schema $schema, array $scopes = [], ?string $userId = null) {
+    public function getServer(array $scopes = [], ?string $userId = null) {
         return new StandardServer(ServerConfig::create()
-            ->setSchema($schema)
+            ->setSchema($this->schema)
             ->setContext([
                 'scopes' => $scopes,
                 'user' => $userId,
@@ -61,7 +70,7 @@ class EntitySchema {
 
         GraphQL::setDefaultFieldResolver(new DefaultFieldResolver());
 
-        return new Schema([
+        $this->schema = new Schema([
             'query'    => new ObjectType([
                 'name'   => 'query',
                 'fields' => $this->getAllQueries($entities),
@@ -73,6 +82,8 @@ class EntitySchema {
                 ),
             ]),
         ]);
+
+        return $this->schema;
     }
 
     /**
@@ -390,5 +401,12 @@ class EntitySchema {
      */
     public function setResultLimit(int $resultLimit): void {
         $this->resultLimit = $resultLimit;
+    }
+
+    /**
+     * @return Schema
+     */
+    public function getSchema(): Schema {
+        return $this->schema;
     }
 }
