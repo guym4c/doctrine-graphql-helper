@@ -15,7 +15,7 @@ abstract class Permission extends Enum {
      *
      * Extend this class and define the permissions in the subclass.
      */
-    private static $scopes;
+    protected static $scopes;
 
     private static function scopeExists(string $id): bool {
         $result = $id == '*' ||

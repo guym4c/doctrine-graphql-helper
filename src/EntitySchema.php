@@ -31,9 +31,9 @@ class EntitySchema {
 
     /**
      * EntitySchema constructor.
-     * @param EntityManager $em
-     * @param string        $userEntity
-     * @param int           $resultLimit
+     * @param EntityManager $em An instance of the entity manager.
+     * @param string        $userEntity The class name of the user entity. If this is null, all permissions will be given to all users.
+     * @param int           $resultLimit The maximum amount of results that can be returned by the API.
      */
     public function __construct(EntityManager $em, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
         $this->userEntity = $userEntity;
