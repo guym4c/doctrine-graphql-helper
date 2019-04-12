@@ -25,30 +25,25 @@ composer require guym4c/doctrine-graphql-helper
 
 ## Usage
 
-Construct a schema builder:
+Construct a schema builder on entities of your choice. All entities must inherit `GraphQLEntity`.
 
 ```php
-$builder = new EntitySchema($em);
-```
-
-Where `$em` is an instance of the Doctrine entity manager.
-If you wish to use permissions, you may also provide the class of the user entity (this must implement `ApiUserInterface`).
-
-Then, build the schema on the provided entities.
-
-```php
-$schema = $builder->build([
+$builder = new EntitySchemaBuilder($em, [
     'users' => User::class,
     'dogs'  => Dog::class,
     'cats'  => Cat::class,
 ]);
 ```
 
-A shorthand method is also given to construct a server using the schema.
+If you wish to use permissions, you may also provide the class of the user entity (this must implement `ApiUserInterface`).
 
+YOu may then retrieve just the schema, or its GraphQL server.
 ```php
-EntitySchema::getServer($schema);
+$schema = $builder->getSchema();
+// or
+$server = $builder->getServer();
 ```
+
 
 ### Custom constructors
 You may extend `buildFromJson()`, if you need to customise how parameters are set when entities are first created. You can call `parent::hydrate()` for any other parameters - in this case, you must unset the parameters that your subclass has used, so that they are not overwritten.
