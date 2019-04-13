@@ -274,6 +274,7 @@ class EntitySchemaBuilder {
     public function isPermitted(array $args, array $context, string $entity, string $method = 'GET'): bool {
 
         if ($context['user'] == null ||
+            $context['scopes'] == null ||
             $this->userEntity == null ||
             $this->permissions == null) {
             return true;
