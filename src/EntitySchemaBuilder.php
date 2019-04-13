@@ -15,7 +15,7 @@ use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
 use ReflectionClass;
 use ReflectionException;
-use GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
+use Guym4c\GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
 
 class EntitySchemaBuilder {
 
@@ -41,18 +41,18 @@ class EntitySchemaBuilder {
 
     /**
      * EntitySchema constructor.
-     * @param EntityManager    $em          An instance of the entity manager.
-     * @param array            $entities    An associative array of the plural form to the fully qualified class name of the entity.
-     * @param Permissions|null $permissions
-     * @param string           $userEntity  The class name of the user entity. If this is null, all permissions will be given to all users.
-     * @param int              $resultLimit The maximum amount of results that can be returned by the API.
+     * @param EntityManager $em          An instance of the entity manager.
+     * @param array         $entities    An associative array of the plural form to the fully qualified class name of the entity.
+     * @param array|null    $scopes      An array of scopes' permissions on entity methods
+     * @param string        $userEntity  The class name of the user entity. If this is null, all permissions will be given to all users.
+     * @param int           $resultLimit The maximum amount of results that can be returned by the API.
      */
-    public function __construct(EntityManager $em, array $entities, ?Permissions $permissions = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
+    public function __construct(EntityManager $em, array $entities, ?array $scopes = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
         $this->userEntity = $userEntity;
         $this->resultLimit = $resultLimit;
         $this->em = $em;
         $this->types = new Types($this->em);
-        $this->permissions = $permissions;
+        $this->permissions = $scopes == null ? null : new Permissions($scopes);
         $this->build($entities);
     }
 
@@ -269,25 +269,27 @@ class EntitySchemaBuilder {
      */
     public function isPermitted(array $args, array $context, string $entity, string $method = 'GET'): bool {
 
-        if ($context['user'] == null) {
+        if ($context['user'] == null ||
+            $this->userEntity == null ||
+            $this->permissions == null) {
             return true;
         }
 
         $permitted = false;
         foreach ($context['scopes'] as $scope) {
-            switch ($this->permissions::getPermission($scope, $entity, $method)) {
+            switch ($this->permissions->getPermission($scope, $entity, $method)) {
 
-                case $this->permissions::ALL:
+                case PermissionLevel::ALL:
                     $permitted = true;
                     break;
 
-                case $this->permissions::PERMISSIVE:
+                case PermissionLevel::PERMISSIVE:
                     $permitted = call_user_func($entity . '::hasPermission', $this->em,
                         $this->em->getRepository($this->userEntity)->find($context['user']),
                         $this->em->getRepository($entity)->find($args['id']));
                     break;
 
-                case $this->permissions::NONE:
+                case PermissionLevel::NONE:
                     break;
             }
 

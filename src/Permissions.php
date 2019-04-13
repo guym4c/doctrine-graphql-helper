@@ -2,28 +2,32 @@
 
 namespace Guym4c\GraphQL\Doctrine\Helper;
 
-abstract class Permissions {
+class Permissions {
+
+    /** @var array */
+    private $scopes;
 
     /**
-     * @var array
-     *
-     * Extend this class and define the permissions in the subclass.
+     * Permissions constructor.
+     * @param array $scopes
      */
-    protected static $scopes;
+    public function __construct(array $scopes) {
+        $this->scopes = $scopes;
+    }
 
-    public static function scopeExists(string $id): bool {
+    public function scopeExists(string $id): bool {
         $result = $id == '*' ||
-            array_key_exists($id, static::$scopes);
+            array_key_exists($id, $this->scopes);
         return $result;
     }
 
-    public static function getPermission(string $id, string $entity, string $method): string {
+    public  function getPermission(string $id, string $entity, string $method): string {
 
-        if (!self::scopeExists($id)) {
+        if (!$this->scopeExists($id)) {
             return PermissionLevel::NONE;
         }
 
-        $scopes = static::$scopes[$id];
+        $scopes = $this->scopes[$id];
 
         if (!empty($scopes[0]) &&
             $scopes[0] == '*') {
