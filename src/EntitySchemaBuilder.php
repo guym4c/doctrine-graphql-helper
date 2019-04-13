@@ -105,6 +105,10 @@ class EntitySchemaBuilder {
         return $queries;
     }
 
+    const ID_ARG_DOC = 'Shorthand for a filter for a single ID. You may encounter a 403 response where you do not have permission for a full query against that resource. In this case, you may provide this argument to select an entity you are permitted to access.';
+    const LIMIT_ARG_DOC = 'Limits the amount of results returned - %d by default. If you require more results, paginate your requests using limit and offset';
+    const OFFSET_ARG_DOC = 'The number of the first record your result set will begin from, inclusive.';
+
     /**
      * Return a GraphQL list type of entity $entity, with default sorting options and comprehensive Doctrine-compatible sorting.
      *
@@ -127,18 +131,18 @@ class EntitySchemaBuilder {
                 [
                     'name'        => 'id',
                     'type'        => Type::id(),
-                    'description' => 'Shorthand for a filter for a single ID. You may encounter a 403 response where you do not have permission for a full query against that resource. In this case, you may provide this argument to select an entity you are permitted to access.',
+                    'description' => self::ID_ARG_DOC,
                 ],
                 [
                     'name'        => 'limit',
                     'type'        => Type::int(),
-                    'description' => sprintf('Limits the amount of results returned - %d by default. If you require more results, paginate your requests using limit and offset', $this->resultLimit),
+                    'description' => sprintf(self::LIMIT_ARG_DOC, $this->resultLimit),
                 ],
                 [
                     'name'        => 'offset',
                     'type'        => Type::int(),
-                    'description' => 'The number of the first record your result set will begin from, inclusive.'
-                ]
+                    'description' => self::OFFSET_ARG_DOC,
+                ],
             ],
             'resolve' => function ($root, $args, $context) use ($entity) {
                 return $this->resolveQuery($args, $entity, null, $context);
