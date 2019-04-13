@@ -11,7 +11,7 @@ abstract class Permissions {
      */
     protected static $scopes;
 
-    private static function scopeExists(string $id): bool {
+    public static function scopeExists(string $id): bool {
         $result = $id == '*' ||
             array_key_exists($id, static::$scopes);
         return $result;
