@@ -52,10 +52,8 @@ $builder = new EntitySchemaBuilder($em, [
 #### Setting permissions
 
 If you wish to use permissions, you may also provide:
-* The class name of your subclass of `Permissions`
+* An array of scopes and the permissions on methods acting upon them (example below)
 * The class name of the user entity, which must implement `ApiUserInterface`
-
-More details on how to subclass `Permissions` are given in the PHPDoc.
 
 ### Running queries
 
@@ -71,7 +69,9 @@ $server = $builder->getServer();
 #### Providing request permissions
 If you have provided the scopes and the permissions they contain above, then you can provide the request's allowed scopes and the request user ID to `getServer()`.
 
-To assign permissions to each scope, you must extend the `Permission` class and define the scopes in `$scopes`. Each 'method' can be assigned a permission level per-entity. `*` may be used a wildcard. A list of methods can be found in `ResolverMethod`.
+#### Example of scopes array
+
+Each 'method' can be assigned a permission level per-entity. `*` may be used a wildcard. A list of methods can be found in `ResolverMethod`.
 
 For example:
 
