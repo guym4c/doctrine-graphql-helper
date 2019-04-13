@@ -2,9 +2,7 @@
 
 namespace GraphQL\Doctrine\Helper;
 
-use MyCLabs\Enum\Enum;
-
-abstract class Permissions extends Enum {
+abstract class Permissions {
 
     /**
      * @var array
