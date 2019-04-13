@@ -369,7 +369,7 @@ class EntitySchemaBuilder {
         /** @var GraphQLEntity $update */
         $update = $this->em->getRepository($entity)->find($args['id']);
 
-        $update->beforeUpdate($this->em);
+        $update->beforeUpdate($this->em, $args);
 
         $update->hydrate($this->em, $args['input'], $entity);
 
@@ -390,7 +390,7 @@ class EntitySchemaBuilder {
         /** @var GraphQLEntity $condemned */
         $condemned = $this->em->getRepository($entity)->find($args['id']);
 
-        $condemned->beforeDelete($this->em);
+        $condemned->beforeDelete($this->em, $args);
 
         $this->em->remove($condemned);
         $this->em->flush();

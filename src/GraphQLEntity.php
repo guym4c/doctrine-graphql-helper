@@ -68,8 +68,8 @@ abstract class GraphQLEntity implements DoctrineUniqueInterface {
      * Events - implement if required
      */
 
-    public function beforeDelete(EntityManager $em): void {}
+    public function beforeDelete(EntityManager $em, array $args): void {}
 
-    public function beforeUpdate(EntityManager $em): void {}
+    public function beforeUpdate(EntityManager $em, array $args): void {}
 
 }
