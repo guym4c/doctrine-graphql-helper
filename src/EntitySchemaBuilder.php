@@ -36,18 +36,18 @@ class EntitySchemaBuilder {
     /** @var Types */
     private $types;
 
-    /** @var Permission|null */
+    /** @var Permissions|null */
     private $permissions;
 
     /**
      * EntitySchema constructor.
-     * @param EntityManager   $em          An instance of the entity manager.
-     * @param array           $entities    An associative array of the plural form to the fully qualified class name of the entity.
-     * @param Permission|null $permissions
-     * @param string          $userEntity  The class name of the user entity. If this is null, all permissions will be given to all users.
-     * @param int             $resultLimit The maximum amount of results that can be returned by the API.
+     * @param EntityManager    $em          An instance of the entity manager.
+     * @param array            $entities    An associative array of the plural form to the fully qualified class name of the entity.
+     * @param Permissions|null $permissions
+     * @param string           $userEntity  The class name of the user entity. If this is null, all permissions will be given to all users.
+     * @param int              $resultLimit The maximum amount of results that can be returned by the API.
      */
-    public function __construct(EntityManager $em, array $entities, ?Permission $permissions = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
+    public function __construct(EntityManager $em, array $entities, ?Permissions $permissions = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
         $this->userEntity = $userEntity;
         $this->resultLimit = $resultLimit;
         $this->em = $em;

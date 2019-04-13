@@ -4,11 +4,7 @@ namespace GraphQL\Doctrine\Helper;
 
 use MyCLabs\Enum\Enum;
 
-abstract class Permission extends Enum {
-
-    const NONE = 'none';
-    const PERMISSIVE = 'permissive';
-    const ALL = 'all';
+abstract class Permissions extends Enum {
 
     /**
      * @var array
@@ -26,24 +22,24 @@ abstract class Permission extends Enum {
     public static function getPermission(string $id, string $entity, string $method): string {
 
         if (!self::scopeExists($id)) {
-            return 'none';
+            return PermissionLevel::NONE;
         }
 
         $scopes = static::$scopes[$id];
 
         if (!empty($scopes[0]) &&
             $scopes[0] == '*') {
-            return 'all';
+            return PermissionLevel::ALL;
         }
 
         if (empty($scopes[$entity])) {
-            return 'none';
+            return PermissionLevel::NONE;
         }
 
         if (in_array($method, $scopes[$entity])) {
             return $scopes[$entity][$method];
         }
 
-        return 'none';
+        return PermissionLevel::NONE;
     }
 }
