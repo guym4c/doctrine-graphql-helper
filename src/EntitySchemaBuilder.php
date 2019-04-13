@@ -1,6 +1,6 @@
 <?php
 
-namespace GraphQL\Doctrine\Helper;
+namespace Guym4c\GraphQL\Doctrine\Helper;
 
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\OptimisticLockException;

@@ -15,7 +15,7 @@
     "minimum-stability": "stable",
     "autoload": {
         "psr-0": {
-            "GraphQL\\Doctrine\\Helper\\": "src/"
+            "Guym4c\\GraphQL\\Doctrine\\Helper\\": "src/"
         }
     },
     "require": {
