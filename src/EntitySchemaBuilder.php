@@ -56,7 +56,7 @@ class EntitySchemaBuilder {
         $this->build($entities);
     }
 
-    public function getServer(array $scopes = [], ?string $userId = null) {
+    public function getServer(array $scopes = [], ?string $userId = null): StandardServer {
         return new StandardServer(ServerConfig::create()
             ->setSchema($this->schema)
             ->setContext([
@@ -369,6 +369,8 @@ class EntitySchemaBuilder {
         /** @var GraphQLEntity $update */
         $update = $this->em->getRepository($entity)->find($args['id']);
 
+        $update->beforeUpdate($this->em);
+
         $update->hydrate($this->em, $args['input'], $entity);
 
         return $this->resolveQuery($args, $entity, $update);
@@ -385,8 +387,10 @@ class EntitySchemaBuilder {
      */
     private function deleteResolver(array $args, string $entity) {
 
-        /** @var DoctrineUniqueInterface $condemned */
+        /** @var GraphQLEntity $condemned */
         $condemned = $this->em->getRepository($entity)->find($args['id']);
+
+        $condemned->beforeDelete($this->em);
 
         $this->em->remove($condemned);
         $this->em->flush();
