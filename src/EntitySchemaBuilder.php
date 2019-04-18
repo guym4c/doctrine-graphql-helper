@@ -88,7 +88,7 @@ class EntitySchemaBuilder {
                 'name'   => 'mutation',
                 'fields' => array_merge(
                     $this->getAllMutators(array_values($entities)),
-                    $mutators),
+                    $mutations),
             ]),
         ]);
 
