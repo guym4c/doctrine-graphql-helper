@@ -13,9 +13,9 @@ use GraphQL\Server\StandardServer;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
+use Guym4c\GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
 use ReflectionClass;
 use ReflectionException;
-use Guym4c\GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
 
 class EntitySchemaBuilder {
 
@@ -42,18 +42,16 @@ class EntitySchemaBuilder {
     /**
      * EntitySchema constructor.
      * @param EntityManager $em          An instance of the entity manager.
-     * @param array         $entities    An associative array of the plural form to the fully qualified class name of the entity.
      * @param array|null    $scopes      An array of scopes' permissions on entity methods
      * @param string        $userEntity  The class name of the user entity. If this is null, all permissions will be given to all users.
      * @param int           $resultLimit The maximum amount of results that can be returned by the API.
      */
-    public function __construct(EntityManager $em, array $entities, ?array $scopes = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
+    public function __construct(EntityManager $em, ?array $scopes = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
         $this->userEntity = $userEntity;
         $this->resultLimit = $resultLimit;
         $this->em = $em;
         $this->types = new Types($this->em);
         $this->permissions = $scopes == null ? null : new Permissions($scopes);
-        $this->build($entities);
     }
 
     public function getServer(array $scopes = [], ?string $userId = null): StandardServer {
@@ -61,19 +59,25 @@ class EntitySchemaBuilder {
             ->setSchema($this->schema)
             ->setContext([
                 'scopes' => $scopes,
-                'user' => $userId,
+                'user'   => $userId,
             ]));
     }
 
     /**
      * Builds the schema, where $entities is an associative array of the plural form to the fully qualified class name of the entity.
      *
-     * @param array $entities
+     * @param array      $entities An associative array of the plural form to the fully qualified class name of the entity.
+     * @param Mutation[] $mutators
      * @return Schema
      */
-    public function build(array $entities): Schema {
+    public function build(array $entities, array $mutators = []): Schema {
 
         GraphQL::setDefaultFieldResolver(new DefaultFieldResolver());
+
+        $mutations = [];
+        foreach ($mutators as $mutator) {
+            $mutations[$mutator->name()] = $mutator->getMutator();
+        }
 
         $this->schema = new Schema([
             'query'    => new ObjectType([
@@ -83,8 +87,8 @@ class EntitySchemaBuilder {
             'mutation' => new ObjectType([
                 'name'   => 'mutation',
                 'fields' => array_merge(
-                    $this->getAllMutators(array_values($entities))
-                ),
+                    $this->getAllMutators(array_values($entities)),
+                    $mutators),
             ]),
         ]);
 
@@ -253,7 +257,7 @@ class EntitySchemaBuilder {
      *
      * @return array The mutator type
      */
-    private function getMutator(string $entity, array $args, callable $resolver, ?Type $type = null): array {
+    public function getMutator(string $entity, array $args, callable $resolver, ?Type $type = null): array {
         if (empty($type)) {
             $type = Type::listOf($this->types->getOutput($entity));
         }
@@ -424,5 +428,9 @@ class EntitySchemaBuilder {
      */
     public function getSchema(): Schema {
         return $this->schema;
+    }
+
+    public function mutationFactory(): Mutation {
+        return new Mutation($this, $this->types);
     }
 }
