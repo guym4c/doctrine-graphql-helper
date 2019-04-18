@@ -68,9 +68,9 @@ class EntitySchemaBuilder {
      *
      * @param array      $entities An associative array of the plural form to the fully qualified class name of the entity.
      * @param Mutation[] $mutators
-     * @return Schema
+     * @return self
      */
-    public function build(array $entities, array $mutators = []): Schema {
+    public function build(array $entities, array $mutators = []): self {
 
         GraphQL::setDefaultFieldResolver(new DefaultFieldResolver());
 
@@ -92,7 +92,7 @@ class EntitySchemaBuilder {
             ]),
         ]);
 
-        return $this->schema;
+        return $this;
     }
 
     /**
