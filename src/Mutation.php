@@ -21,7 +21,7 @@ class Mutation {
     private $type;
 
     /** @var array */
-    private $args;
+    private $args = [];
 
     /** @var EntitySchemaBuilder */
     private $builder;
