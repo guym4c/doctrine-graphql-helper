@@ -220,7 +220,6 @@ class EntitySchemaBuilder {
         return [
             'create' . $entityName => $this->getMutator($entity, [
                 'input'       => Type::nonNull($this->types->getInput($entity)),
-                'description' => 'example',
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::CREATE);
             }, self::$CREATE_DESCRIPTION),
@@ -230,7 +229,7 @@ class EntitySchemaBuilder {
                 'input' => $this->types->getPartialInput($entity),
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::UPDATE);
-            }), self::$UPDATE_DESCRIPTION,
+            }, self::$UPDATE_DESCRIPTION),
 
             'delete' . $entityName => $this->getMutator($entity, [
                 'id' => Type::nonNull(Type::id()),
