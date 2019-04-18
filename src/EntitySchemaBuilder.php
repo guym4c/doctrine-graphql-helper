@@ -111,9 +111,9 @@ class EntitySchemaBuilder {
         return $queries;
     }
 
-    const ID_ARG_DOC = 'Shorthand for a filter for a single ID. You may encounter a 403 response where you do not have permission for a full query against that resource. In this case, you may provide this argument to select an entity you are permitted to access.';
-    const LIMIT_ARG_DOC = 'Limits the amount of results returned - %d by default. If you require more results, paginate your requests using limit and offset';
-    const OFFSET_ARG_DOC = 'The number of the first record your result set will begin from, inclusive.';
+    private static  $ID_ARG_DOC = 'Shorthand for a filter for a single ID. You may encounter a 403 response where you do not have permission for a full query against that resource. In this case, you may provide this argument to select an entity you are permitted to access.';
+    private static $LIMIT_ARG_DOC = 'Limits the amount of results returned - %d by default. If you require more results, paginate your requests using limit and offset';
+    private static $OFFSET_ARG_DOC = 'The number of the first record your result set will begin from, inclusive.';
 
     /**
      * Return a GraphQL list type of entity $entity, with default sorting options and comprehensive Doctrine-compatible sorting.
@@ -137,17 +137,17 @@ class EntitySchemaBuilder {
                 [
                     'name'        => 'id',
                     'type'        => Type::id(),
-                    'description' => self::ID_ARG_DOC,
+                    'description' => self::$ID_ARG_DOC,
                 ],
                 [
                     'name'        => 'limit',
                     'type'        => Type::int(),
-                    'description' => sprintf(self::LIMIT_ARG_DOC, $this->resultLimit),
+                    'description' => sprintf(self::$LIMIT_ARG_DOC, $this->resultLimit),
                 ],
                 [
                     'name'        => 'offset',
                     'type'        => Type::int(),
-                    'description' => self::OFFSET_ARG_DOC,
+                    'description' => self::$OFFSET_ARG_DOC,
                 ],
             ],
             'resolve' => function ($root, $args, $context) use ($entity) {
@@ -199,6 +199,10 @@ class EntitySchemaBuilder {
             ->execute();
     }
 
+    private static $CREATE_DESCRIPTION = 'Create and return and entity with the provided input';
+    private static $UPDATE_DESCRIPTION = 'Update the entity with the provided ID with the partial input';
+    private static $DELETE_DESCRIPTION = 'Delete the entity with the provided ID';
+
     /**
      * Generates create, update and delete mutators against $entity, which must implement DoctrineUniqueInterface.
      *
@@ -215,23 +219,24 @@ class EntitySchemaBuilder {
 
         return [
             'create' . $entityName => $this->getMutator($entity, [
-                'input' => Type::nonNull($this->types->getInput($entity)),
+                'input'       => Type::nonNull($this->types->getInput($entity)),
+                'description' => 'example',
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::CREATE);
-            }),
+            }, self::$CREATE_DESCRIPTION),
 
             'update' . $entityName => $this->getMutator($entity, [
                 'id'    => Type::nonNull(Type::id()),
                 'input' => $this->types->getPartialInput($entity),
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::UPDATE);
-            }),
+            }), self::$UPDATE_DESCRIPTION,
 
             'delete' . $entityName => $this->getMutator($entity, [
                 'id' => Type::nonNull(Type::id()),
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::DELETE);
-            }, Type::nonNull(Type::id()))
+            }, self::$DELETE_DESCRIPTION, Type::nonNull(Type::id()))
         ];
     }
 
@@ -252,21 +257,23 @@ class EntitySchemaBuilder {
     /**
      * Generates a mutator from the provided type, args and resolver. By default, the mutator returns a list type of $entity using listOf().
      *
-     * @param string    $entity   The entity which the mutator acts against
-     * @param array     $args     An array of args that this mutator will possess
-     * @param callable  $resolver A callable resolver in the format function($root, $args)
-     * @param Type|null $type     If specified, a type that will override the default given above
+     * @param string      $entity   The entity which the mutator acts against
+     * @param array       $args     An array of args that this mutator will possess
+     * @param callable    $resolver A callable resolver in the format function($root, $args)
+     * @param string|null $description
+     * @param Type|null   $type     If specified, a type that will override the default given above
      *
      * @return array The mutator type
      */
-    public function getMutator(string $entity, array $args, callable $resolver, ?Type $type = null): array {
+    public function getMutator(string $entity, array $args, callable $resolver, ?string $description = null, ?Type $type = null): array {
         if (empty($type)) {
             $type = Type::listOf($this->types->getOutput($entity));
         }
         return [
-            'type'    => $type,
-            'args'    => $args,
-            'resolve' => $resolver,
+            'type'        => $type,
+            'args'        => $args,
+            'resolve'     => $resolver,
+            'description' => $description ?? '',
         ];
     }
 

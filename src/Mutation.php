@@ -28,6 +28,9 @@ class Mutation {
     /** @var string */
     private $method;
 
+    /** @var string|null */
+    private $description;
+
     /** @var bool */
     private $permissions = true;
 
@@ -48,19 +51,21 @@ class Mutation {
      * @param Type|null   $type     The return type. If not provided, this defaults to a list of $entity
      * @param string|null $method
      * @param array       $args
+     * @param string|null $description
      * @param bool        $permissions
      */
-    public function hydrate(string $entity, callable $resolver, ?Type $type = null, ?string $method = null, array $args = [], bool $permissions = true) {
+    public function hydrate(string $entity, callable $resolver, ?Type $type = null, ?string $method = null, array $args = [], ?string $description = null, bool $permissions = true) {
         $this->entity = $entity;
         $this->resolver = $resolver;
         $this->type = $type ?? Type::listOf($this->builder->getTypes()->getOutput($entity));
         $this->method = $method ?? ResolverMethod::UPDATE;
         $this->args = $args;
+        $this->description = $description;
         $this->permissions = $permissions;
     }
 
     public function getMutator(): array {
-        return $this->builder->getMutator($this->entity, $this->args, $this->getResolver(), $this->type);
+        return $this->builder->getMutator($this->entity, $this->args, $this->getResolver(), $this->description, $this->type);
     }
 
     /**
@@ -105,6 +110,15 @@ class Mutation {
      */
     public function setArgs(array $args): self {
         $this->args = $args;
+        return $this;
+    }
+
+    /**
+     * @param string|null $description
+     * @return self
+     */
+    public function setDescription(?string $description): self {
+        $this->description = $description;
         return $this;
     }
 
