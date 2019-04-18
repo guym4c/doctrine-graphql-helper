@@ -109,6 +109,15 @@ class Mutation {
     }
 
     /**
+     * @param bool $permissions
+     * @return self
+     */
+    public function usePermissions(bool $permissions): self {
+        $this->permissions = $permissions;
+        return $this;
+    }
+
+    /**
      * @return string
      */
     public function getName(): string {
@@ -121,8 +130,10 @@ class Mutation {
     public function getResolver(): callable {
         return function ($root, $args, $context) {
 
-            if (!$this->builder->isPermitted($args, $context, $this->entity, $this->method)) {
-                return [403];
+            if ($this->permissions) {
+                if (!$this->builder->isPermitted($args, $context, $this->entity, $this->method)) {
+                    return [403];
+                }
             }
 
             return ($this->resolver)($args);
