@@ -39,6 +39,9 @@ class EntitySchemaBuilder {
     /** @var Permissions|null */
     private $permissions;
 
+    /** @var Mutation[] */
+    private $mutators = [];
+
     /**
      * EntitySchema constructor.
      * @param EntityManager $em          An instance of the entity manager.
@@ -66,17 +69,16 @@ class EntitySchemaBuilder {
     /**
      * Builds the schema, where $entities is an associative array of the plural form to the fully qualified class name of the entity.
      *
-     * @param array      $entities An associative array of the plural form to the fully qualified class name of the entity.
-     * @param Mutation[] $mutators
+     * @param array $entities An associative array of the plural form to the fully qualified class name of the entity.
      * @return self
      */
-    public function build(array $entities, array $mutators = []): self {
+    public function build(array $entities): self {
 
         GraphQL::setDefaultFieldResolver(new DefaultFieldResolver());
 
-        $mutations = [];
-        foreach ($mutators as $mutator) {
-            $mutations[$mutator->name()] = $mutator->getMutator();
+        $parsedMutators = [];
+        foreach ($this->mutators as $mutator) {
+            $parsedMutators[$mutator->getName()] = $mutator->getMutator();
         }
 
         $this->schema = new Schema([
@@ -88,7 +90,7 @@ class EntitySchemaBuilder {
                 'name'   => 'mutation',
                 'fields' => array_merge(
                     $this->getAllMutators(array_values($entities)),
-                    $mutations),
+                    $parsedMutators),
             ]),
         ]);
 
@@ -430,7 +432,16 @@ class EntitySchemaBuilder {
         return $this->schema;
     }
 
-    public function mutationFactory(): Mutation {
-        return new Mutation($this, $this->types);
+    /**
+     * @return Types
+     */
+    public function getTypes(): Types {
+        return $this->types;
+    }
+
+    public function mutation(string $name): Mutation {
+        $mutation = new Mutation($this, $name);
+        $this->mutators[$name] = $mutation;
+        return $mutation;
     }
 }

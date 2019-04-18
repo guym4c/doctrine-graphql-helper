@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Guym4c\GraphQL\Doctrine\Helper;
 
 use GraphQL\Doctrine\Types;
@@ -26,37 +25,42 @@ class Mutation {
     /** @var EntitySchemaBuilder */
     private $builder;
 
-    /** @var Types */
-    private $types;
+    /** @var string */
+    private $method;
+
+    /** @var bool */
+    private $permissions = true;
 
     /**
-     * Mutation constructor. To be called from the factory in an EntitySchemaBuilder
+     * Mutation constructor
      * @param EntitySchemaBuilder $builder
-     * @param Types               $types
+     * @param string              $name
      */
-    public function __construct(EntitySchemaBuilder $builder, Types $types) {
+    public function __construct(EntitySchemaBuilder $builder, string $name) {
         $this->builder = $builder;
-        $this->types = $types;
+        $this->name = $name;
     }
 
     /**
-     * Mutation constructor.
-     * @param string    $name     The name of this mutation
-     * @param string    $entity   The entity classname that this mutation will operate on
-     * @param callable  $resolver The resolver class, in the format function ($root, $args, $context)
-     * @param Type|null $type     The return type. If not provided, this defaults to a list of $entity
-     * @param array     $args
+     * Hydrate a mutation.
+     * @param string      $entity   The entity classname that this mutation will operate on
+     * @param callable    $resolver The resolver class, in the format function ($args)
+     * @param Type|null   $type     The return type. If not provided, this defaults to a list of $entity
+     * @param string|null $method
+     * @param array       $args
+     * @param bool        $permissions
      */
-    public function hydrate(string $name, string $entity, callable $resolver, ?Type $type = null, array $args = []) {
-        $this->name = $name;
+    public function hydrate(string $entity, callable $resolver, ?Type $type = null, ?string $method = null, array $args = [], bool $permissions = true) {
         $this->entity = $entity;
         $this->resolver = $resolver;
-        $this->type = $type ?? Type::listOf($this->types->getOutput($entity));
+        $this->type = $type ?? Type::listOf($this->builder->getTypes()->getOutput($entity));
+        $this->method = $method ?? ResolverMethod::UPDATE;
         $this->args = $args;
+        $this->permissions = $permissions;
     }
 
     public function getMutator(): array {
-        return $this->builder->getMutator($this->entity, $this->args, $this->resolver, $this->type);
+        return $this->builder->getMutator($this->entity, $this->args, $this->getResolver(), $this->type);
     }
 
     /**
@@ -104,19 +108,26 @@ class Mutation {
         return $this;
     }
 
-
-
-    /**
-     * @return Types
-     */
-    public function types(): Types {
-        return $this->types;
-    }
-
     /**
      * @return string
      */
-    public function name(): string {
+    public function getName(): string {
         return $this->name;
     }
+
+    /**
+     * @return callable
+     */
+    public function getResolver(): callable {
+        return function ($root, $args, $context) {
+
+            if (!$this->builder->isPermitted($args, $context, $this->entity, $this->method)) {
+                return [403];
+            }
+
+            return ($this->resolver)($args);
+        };
+    }
+
+
 }
