@@ -199,10 +199,6 @@ class EntitySchemaBuilder {
             ->execute();
     }
 
-    private static $CREATE_DESCRIPTION = 'Create and return and entity with the provided input';
-    private static $UPDATE_DESCRIPTION = 'Update the entity with the provided ID with the partial input';
-    private static $DELETE_DESCRIPTION = 'Delete the entity with the provided ID';
-
     /**
      * Generates create, update and delete mutators against $entity, which must implement DoctrineUniqueInterface.
      *
@@ -222,20 +218,20 @@ class EntitySchemaBuilder {
                 'input'       => Type::nonNull($this->types->getInput($entity)),
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::CREATE);
-            }, self::$CREATE_DESCRIPTION),
+            }),
 
             'update' . $entityName => $this->getMutator($entity, [
                 'id'    => Type::nonNull(Type::id()),
                 'input' => $this->types->getPartialInput($entity),
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::UPDATE);
-            }, self::$UPDATE_DESCRIPTION),
+            }),
 
             'delete' . $entityName => $this->getMutator($entity, [
                 'id' => Type::nonNull(Type::id()),
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::DELETE);
-            }, self::$DELETE_DESCRIPTION, Type::nonNull(Type::id()))
+            }, null, Type::nonNull(Type::id()))
         ];
     }
 
