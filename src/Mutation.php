@@ -52,6 +52,7 @@ class Mutation {
         $this->entity = $entity;
         $this->resolver = $resolver;
         $this->type = $type ?? Type::listOf($this->types->getOutput($entity));
+        $this->args = $args;
     }
 
     public function getMutator(): array {
