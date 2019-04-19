@@ -196,8 +196,11 @@ class EntitySchemaBuilder {
         $n = $args['limit'] ?? self::DEFAULT_RESULT_LIMIT;
         $offset = $args['offset'] ?? 0;
 
+        foreach ($params as $key => $value) {
+            $query->setParameter($key, $value);
+        }
+
         $query->getQuery()
-            ->setParameters(array_merge($query->getParameters()->toArray(), $params))
             ->setFirstResult($offset)
             ->setMaxResults($n);
 
