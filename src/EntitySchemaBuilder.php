@@ -14,6 +14,7 @@ use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
 use Guym4c\GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
+use League\Container\Container;
 use ReflectionClass;
 use ReflectionException;
 
@@ -50,10 +51,13 @@ class EntitySchemaBuilder {
      * @param int           $resultLimit The maximum amount of results that can be returned by the API.
      */
     public function __construct(EntityManager $em, ?array $scopes = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
+        $types = new Container();
+        $types->add('datetime', DateTimeType::class);
+
         $this->userEntity = $userEntity;
         $this->resultLimit = $resultLimit;
         $this->em = $em;
-        $this->types = new Types($this->em);
+        $this->types = new Types($this->em, $types);
         $this->permissions = $scopes == null ? null : new Permissions($scopes);
     }
 
