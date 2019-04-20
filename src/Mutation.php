@@ -7,6 +7,8 @@ use GraphQL\Type\Definition\Type;
 
 class Mutation {
 
+    const DEFAULT_METHOD = ResolverMethod::UPDATE;
+
     /** @var string */
     private $name;
 
@@ -42,6 +44,7 @@ class Mutation {
     public function __construct(EntitySchemaBuilder $builder, string $name) {
         $this->builder = $builder;
         $this->name = $name;
+        $this->method = self::DEFAULT_METHOD;
     }
 
     /**
@@ -58,7 +61,7 @@ class Mutation {
         $this->entity = $entity;
         $this->resolver = $resolver;
         $this->type = $type ?? Type::listOf($this->builder->getTypes()->getOutput($entity));
-        $this->method = $method ?? ResolverMethod::UPDATE;
+        $this->method = $method ?? self::DEFAULT_METHOD;
         $this->args = $args;
         $this->description = $description;
         $this->permissions = $permissions;
