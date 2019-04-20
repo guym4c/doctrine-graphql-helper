@@ -52,7 +52,7 @@ class EntitySchemaBuilder {
      */
     public function __construct(EntityManager $em, ?array $scopes = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
         $types = new Container();
-        $types->add('datetime', DateTimeType::class);
+        $types->add('datetime', new DateTimeType());
 
         $this->userEntity = $userEntity;
         $this->resultLimit = $resultLimit;
