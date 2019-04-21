@@ -153,7 +153,7 @@ class Mutation {
                 }
             }
 
-            return ($this->resolver)($args);
+            return ($this->resolver)($args, $context['user']);
         };
     }
 
