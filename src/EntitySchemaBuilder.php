@@ -170,7 +170,7 @@ class EntitySchemaBuilder {
      * @param array                        $context
      * @return mixed If successful, an array of
      */
-    private function resolveQuery(array $args, string $entity, ?DoctrineUniqueInterface $only = null, array $context = []) {
+    public function resolveQuery(array $args, string $entity, ?DoctrineUniqueInterface $only = null, array $context = []) {
 
         if (!empty($only)) {
             $args['id'] = $only->getIdentifier();
