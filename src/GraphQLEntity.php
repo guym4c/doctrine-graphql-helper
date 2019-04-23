@@ -24,10 +24,15 @@ abstract class GraphQLEntity implements DoctrineUniqueInterface {
             if (!$field['nullable'] &&
                 !($field['id'] ?? false)) {
 
-                if (empty($data[$fieldName])) {
-                    throw new InvalidArgumentException(sprintf("Field %s is required but not provided", $fieldName));
+                if (empty($this->{$fieldName})) {
+
+                    if (empty($data[$fieldName])) {
+                        throw new InvalidArgumentException(sprintf("Field %s is required but not provided", $fieldName));
+                    } else {
+                        $this->hydrateField($fieldName, $data[$fieldName]);
+                    }
                 }
-                $this->hydrateField($fieldName, $data[$fieldName]);
+
                 unset($data[$fieldName]);
             }
         }
