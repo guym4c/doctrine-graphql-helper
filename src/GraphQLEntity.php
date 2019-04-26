@@ -13,8 +13,9 @@ abstract class GraphQLEntity implements DoctrineUniqueInterface {
      * @param EntityManager $em
      * @param array         $data
      * @param string|null   $entity
+     * @param bool          $update
      */
-    public function hydrate(EntityManager $em, array $data, ?string $entity = null) {
+    public function hydrate(EntityManager $em, array $data, ?string $entity = null, bool $update = false) {
 
         $entity = $entity ?? static::class;
 
@@ -24,9 +25,9 @@ abstract class GraphQLEntity implements DoctrineUniqueInterface {
             if (!$field['nullable'] &&
                 !($field['id'] ?? false)) {
 
-                if (empty($this->{$fieldName})) {
+                if (empty($this->{$fieldName}) || $update) {
 
-                    if (empty($data[$fieldName])) {
+                    if (empty($data[$fieldName]) && !$update) {
                         throw new InvalidArgumentException(sprintf("Field %s is required but not provided", $fieldName));
                     } else {
                         $this->hydrateField($fieldName, $data[$fieldName]);

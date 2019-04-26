@@ -390,6 +390,8 @@ class EntitySchemaBuilder {
      * @param string $entity The entity which the resolver acts against
      *
      * @return mixed The rest of the query, resolved
+     * @throws ORMException
+     * @throws OptimisticLockException
      */
     private function updateResolver(array $args, string $entity) {
 
@@ -398,7 +400,9 @@ class EntitySchemaBuilder {
 
         $update->beforeUpdate($this->em, $args);
 
-        $update->hydrate($this->em, $args['input'], $entity);
+        $update->hydrate($this->em, $args['input'], $entity, true);
+
+        $this->em->flush();
 
         return $this->resolveQuery($args, $entity, $update);
     }
