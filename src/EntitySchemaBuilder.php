@@ -160,6 +160,10 @@ class EntitySchemaBuilder {
         ];
     }
 
+    public function immutableListOf(string $entity): Type {
+        return Type::listOf($this->types->getOutput($entity));
+    }
+
     /**
      * Resolve a simple 'get' query against entity $entity, parsing filtering and sorting as given by listOf().
      * If $only is not provided, then you must provide the query $context.
