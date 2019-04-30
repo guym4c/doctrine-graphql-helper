@@ -135,7 +135,7 @@ The schema builder exposes a variety of methods which may be of use when writing
 
 **`isPermitted()`:** Resolves the permission level of a query, given its args, query context and entity class name. The query context is a value used internally by the schema builder and is an associative array of the following format: 
 
-``php
+```php
 $context = [
     'scopes' => [],// array of this request's scopes
     'user'   => '',// user ID
