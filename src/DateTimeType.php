@@ -2,7 +2,7 @@
 
 // from ecodev/GraphQLTests\Doctrine\Blog\Types\DateTimeType;
 
-namespace Guym4c\GraphQL\Doctrine\Helper;
+namespace GraphQL\Doctrine\Helper;
 
 use DateTime;
 use GraphQL\Error\Error;

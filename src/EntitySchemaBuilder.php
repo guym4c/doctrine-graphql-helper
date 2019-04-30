@@ -1,6 +1,6 @@
 <?php
 
-namespace Guym4c\GraphQL\Doctrine\Helper;
+namespace GraphQL\Doctrine\Helper;
 
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\OptimisticLockException;
@@ -13,7 +13,7 @@ use GraphQL\Server\StandardServer;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
-use Guym4c\GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
+use GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
 use League\Container\Container;
 use ReflectionClass;
 use ReflectionException;

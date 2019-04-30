@@ -1,6 +1,6 @@
 <?php
 
-namespace Guym4c\GraphQL\Doctrine\Helper;
+namespace GraphQL\Doctrine\Helper;
 
 use GraphQL\Doctrine\Types;
 use GraphQL\Type\Definition\Type;

@@ -1,6 +1,6 @@
 <?php
 
-namespace Guym4c\GraphQL\Doctrine\Helper;
+namespace GraphQL\Doctrine\Helper;
 
 use MyCLabs\Enum\Enum;
 

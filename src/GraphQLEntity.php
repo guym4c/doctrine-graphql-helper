@@ -1,6 +1,6 @@
 <?php
 
-namespace Guym4c\GraphQL\Doctrine\Helper;
+namespace GraphQL\Doctrine\Helper;
 
 use Doctrine\ORM\EntityManager;
 use GraphQL\Doctrine\Definition\EntityID;
