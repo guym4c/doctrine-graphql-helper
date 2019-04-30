@@ -8,21 +8,6 @@ Via Composer:
 composer install guym4c/doctrine-graphql-helper
 ```
 
-Add the following to your ```composer.json```:
-```json
-"repositories": [
-    {
-        "type": "path",
-        "url":"doctrine-graphql-helper/"
-    }
-]
-```
-
-Then install
-```
-composer require guym4c/doctrine-graphql-helper @dev
-```
-
 ## Usage
 This package is a helper package for [`graphql-php`](https://github.com/webonyx/graphql-php) and [`graphql-doctrine`](https://github.com/ecodev/graphql-doctrine), which install automatically with it. Entities used with this package must be graphql-doctrine-compatible. Refer to these packages’ documentation for more details.
 
