@@ -5,7 +5,7 @@ Easily create a GraphQL schema from Doctrine entities.
 ## Install
 Via a local composer repository
 ```bash
-git clone https://github.com/guym4c/doctrine-graphql-helper.git sussex-ldap/
+git clone https://github.com/guym4c/doctrine-graphql-helper.git doctrine-graphql-helper/
 ```
 
 Add the following to your ```composer.json```:
