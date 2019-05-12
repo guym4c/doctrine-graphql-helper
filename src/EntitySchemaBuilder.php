@@ -8,6 +8,7 @@ use Doctrine\ORM\ORMException;
 use GraphQL\Doctrine\DefaultFieldResolver;
 use GraphQL\Doctrine\Types;
 use GraphQL\GraphQL;
+use GraphQL\Server\OperationParams;
 use GraphQL\Server\ServerConfig;
 use GraphQL\Server\StandardServer;
 use GraphQL\Type\Definition\ObjectType;
@@ -461,5 +462,12 @@ class EntitySchemaBuilder {
         $mutation = new Mutation($this, $name);
         $this->mutators[$name] = $mutation;
         return $mutation;
+    }
+    
+    public static function createServerOperation(array $json): OperationParams {
+        return OperationParams::create([
+            'query' => $json['query'],
+            'variables' => $json['variabes'] ?? null,
+        ]);
     }
 }
