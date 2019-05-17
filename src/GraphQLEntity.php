@@ -68,7 +68,9 @@ abstract class GraphQLEntity implements DoctrineUniqueInterface {
         return $entity;
     }
 
-    public abstract static function hasPermission(EntityManager $em, ApiUserInterface $user, string $entityId): bool;
+    public static function hasPermission(EntityManager $em, ApiUserInterface $user, string $entityId): bool {
+        return true;
+    }
 
     /*
      * Events - implement if required
