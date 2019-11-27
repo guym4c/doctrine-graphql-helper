@@ -94,7 +94,7 @@ class EntitySchemaBuilder {
             'mutation' => new ObjectType([
                 'name'   => 'mutation',
                 'fields' => array_merge(
-                    $this->getAllMutators(array_values($entities)),
+                    $this->generateMutatorsForEntities(array_values($entities)),
                     $parsedMutators),
             ]),
         ]);
@@ -111,7 +111,7 @@ class EntitySchemaBuilder {
     private function getAllQueries(array $entities) {
         $queries = [];
         foreach ($entities as $key => $entity) {
-            $queries[$key] = $this->listOf($entity);
+            $queries[$key] = $this->listOfQuery($entity);
         }
         return $queries;
     }
@@ -127,9 +127,9 @@ class EntitySchemaBuilder {
      *
      * @return array The field entry within ObjectType.fields
      */
-    private function listOf(string $entity): array {
+    private function listOfQuery(string $entity): array {
         return [
-            'type'    => Type::listOf($this->types->getOutput($entity)),
+            'type'    => $this->listOfType($entity),
             'args'    => [
                 [
                     'name' => 'filter',
@@ -161,7 +161,7 @@ class EntitySchemaBuilder {
         ];
     }
 
-    public function immutableListOf(string $entity): Type {
+    public function listOfType(string $entity): Type {
         return Type::listOf($this->types->getOutput($entity));
     }
 
@@ -218,7 +218,7 @@ class EntitySchemaBuilder {
      * @param string $entity The entity type class name that the mutators should act upon.
      * @return array A list of mutator types
      */
-    private function getMutators(string $entity): array {
+    private function generateMutatorsForEntity(string $entity): array {
 
         try {
             $entityName = (new ReflectionClass($entity))->getShortName();
@@ -254,10 +254,10 @@ class EntitySchemaBuilder {
      * @return array A list of mutator types
      * @see self::getMutators()
      */
-    private function getAllMutators(array $entities): array {
+    private function generateMutatorsForEntities(array $entities): array {
         $mutators = [];
         foreach ($entities as $entity) {
-            $mutators = array_merge($mutators, $this->getMutators($entity));
+            $mutators = array_merge($mutators, $this->generateMutatorsForEntity($entity));
         }
         return $mutators;
     }
@@ -310,9 +310,12 @@ class EntitySchemaBuilder {
                     break;
 
                 case PermissionLevel::PERMISSIVE:
-                    $permitted = call_user_func($entity . '::hasPermission', $this->em,
-                        $this->em->getRepository($this->userEntity)->find($context['user']),
-                        $this->em->getRepository($entity)->find($args['id']));
+                    /** @var GraphQLEntity $entityObject */
+                    $entityObject = $this->em->getRepository($entity)->find($args['id']);
+                    /** @var ApiUserInterface $user */
+                    $user = $this->em->getRepository($this->userEntity)->find($context['user']);
+
+                    $permitted = $entityObject->hasPermission($this->em, $user);
                     break;
 
                 case PermissionLevel::NONE:
@@ -340,9 +343,7 @@ class EntitySchemaBuilder {
      */
     private function mutationResolver(array $args, array $context, string $entity, string $method) {
 
-        $permitted = $this->isPermitted($args, $context, $entity, $method);
-
-        if (!$permitted) {
+        if (!$this->isPermitted($args, $context, $entity, $method)) {
             return [403];
         }
 
@@ -464,10 +465,10 @@ class EntitySchemaBuilder {
         return $mutation;
     }
     
-    public static function createServerOperation(array $json): OperationParams {
+    public static function jsonToOperation(array $json): OperationParams {
         return OperationParams::create([
             'query' => $json['query'],
-            'variables' => $json['variabes'] ?? null,
+            'variables' => $json['variables'] ?? null,
         ]);
     }
 }

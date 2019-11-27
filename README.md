@@ -1,6 +1,6 @@
 # doctrine-graphql-helper
 
-Easily create a GraphQL schema from Doctrine entities.
+Generate a PSR-7 GraphQL API server from an instance of the Doctrine ORM in just a few lines of PHP, with permissions and custom mutation resolvers available out-of-the-box.
 
 ## Install
 Via Composer:
@@ -9,7 +9,7 @@ composer install guym4c/doctrine-graphql-helper
 ```
 
 ## Usage
-This package is a helper package for [`graphql-php`](https://github.com/webonyx/graphql-php) and [`graphql-doctrine`](https://github.com/ecodev/graphql-doctrine), which install automatically with it. Entities used with this package must be graphql-doctrine-compatible. Refer to these packages’ documentation for more details.
+This package is a helper package for [`graphql-php`](https://github.com/webonyx/graphql-php) and [`graphql-doctrine`](https://github.com/ecodev/graphql-doctrine), which install automatically with it. Entities used with this package must be `graphql-doctrine`-compatible. Refer to these packages’ documentation for more details.
 
 ### `GraphQLEntity`
 Any entities which you wish to use in your API must extend `GraphQLEntity` and implement the required methods.
@@ -45,6 +45,8 @@ If you wish to use permissions, you may also provide the EntitySchemaBuilder con
 
 ### Running queries
 You may use your built schema in a GraphQL server of your choice, or use the helper’s integration with `graphql-php` to retrieve a server object already set up with your schema and any permissions settings you have defined by calling `getServer()`.
+
+The server object returned accepts a request object in its `executeRequest()` method. In some cases you may wish to run a JSON payload through the server - to do this you can parse the JSON to a format which the server will accept as a parameter to `executeRequest()` by calling `EntitySchemaBuilder::jsonToOperation($json)`.
 
 ### Using permissions
 If you have set the schema builder’s permissions during instantiation, provide the permitted scopes (as an array) and the user’s identifier to the `getServer()` method to execute the query with permissions enabled.
@@ -85,7 +87,7 @@ An asterisk (\*) is a wildcard, indicating full permissions are given for this s
 * **All:** Accessible to all users with this scope
 * **None:** Not accessible to users with this scope
 * **Permissive:**	Users permissions with this scope are resolved in the entity’s `hasPermission()` method. If you don’t wish to use permissive, but are running the server with permissions enabled, simply implement the method with a return true. 
-The `hasPermission()` static is called for all methods that are defined as permissive, and you are passed an instance of the Doctrine entity manager, an instance of your API user class as `ApiUserInterface`, and the ID of the entity that is being queried by the user. You are not given an instantiated version of the entity class being called: if you wish, you must retrieve this from the entity manager manually using the provided entity ID.
+The `hasPermission()` method is called for all methods that are defined as permissive, and you are passed an instance of the Doctrine entity manager and an instance of your API user class as `ApiUserInterface`.
 
 ## Using custom mutators
 The schema generator exposes a simple API for adding your own mutators, and a class (`Mutation`). This wraps some advanced functionality of graphql-doctrine, and so reference to that package’s documentation may or will be required using this feature.
@@ -108,7 +110,7 @@ There are two methods of hydrating the new `Mutation` returned by the factory: u
 ## Methods exposed by the builder
 The schema builder exposes a variety of methods which may be of use when writing resolver functions. You may wish to consult the documentation of `graphql-php` and `graphql-doctrine` for more information on the values that some of these methods return.
 
-**`immutableListOf()`:** When given an entity’s class name, returns a GraphQL return type of a list of the entity.
+**`listOfType()`:** When given an entity’s class name, returns a GraphQL return type of a list of the entity.
 
 **`resolveQuery()`:** Resolves a query using the entity manager. Requires the args array given with the query, and the class name of the root entity being queried. You may also pass in an instance of the entity as the third parameter to fully resolve and then return this entity.
 

@@ -2,6 +2,4 @@
 
 namespace GraphQL\Doctrine\Helper;
 
-interface ApiUserInterface extends DoctrineUniqueInterface {
-
-}
+interface ApiUserInterface extends DoctrineUniqueInterface {}
