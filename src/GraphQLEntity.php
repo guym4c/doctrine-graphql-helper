@@ -5,6 +5,7 @@ namespace GraphQL\Doctrine\Helper;
 use Doctrine\ORM\EntityManager;
 use GraphQL\Doctrine\Definition\EntityID;
 use InvalidArgumentException;
+use GraphQL\Doctrine\Annotation as API;
 use GraphQL;
 
 abstract class GraphQLEntity implements DoctrineUniqueInterface {
@@ -68,6 +69,13 @@ abstract class GraphQLEntity implements DoctrineUniqueInterface {
         return $entity;
     }
 
+    /**
+     * @API\Exclude
+     *
+     * @param EntityManager    $em
+     * @param ApiUserInterface $user
+     * @return bool
+     */
     public function hasPermission(EntityManager $em, ApiUserInterface $user): bool {
         return true;
     }
