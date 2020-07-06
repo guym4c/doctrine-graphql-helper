@@ -4,7 +4,7 @@ namespace GraphQL\Doctrine\Helper;
 
 use MyCLabs\Enum\Enum;
 
-class ResolverMethod extends Enum {
+class ActionMethod extends Enum {
 
     const CREATE = 'create';
     const UPDATE = 'update';

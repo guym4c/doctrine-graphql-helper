@@ -1,7 +1,5 @@
 <?php /** @noinspection ALL */
 
-// from ecodev/GraphQLTests\Doctrine\Blog\Types\DateTimeType;
-
 namespace GraphQL\Doctrine\Helper;
 
 use DateTime;
@@ -12,8 +10,7 @@ use GraphQL\Utils\Utils;
 
 class DateTimeType extends ScalarType
 {
-    public function parseLiteral($valueNode, array $variables = null)
-    {
+    public function parseLiteral($valueNode, array $variables = null) {
         // Note: throwing GraphQL\Error\Error vs \UnexpectedValueException to benefit from GraphQL
         // error location in query:
         if (!($valueNode instanceof StringValueNode)) {
@@ -23,17 +20,15 @@ class DateTimeType extends ScalarType
         return $valueNode->value;
     }
 
-    public function parseValue($value, array $variables = null)
-    {
+    public function parseValue($value, array $variables = null) {
         if (!is_string($value)) {
-            throw new \UnexpectedValueException('Cannot represent value as DateTime date: ' . Utils::printSafe($value));
+            throw new UnexpectedValueException('Cannot represent value as DateTime date: ' . Utils::printSafe($value));
         }
 
         return new DateTime($value);
     }
 
-    public function serialize($value)
-    {
+    public function serialize($value) {
         if ($value instanceof DateTime) {
             return $value->format('c');
         }

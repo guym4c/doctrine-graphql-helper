@@ -6,7 +6,10 @@ use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\OptimisticLockException;
 use Doctrine\ORM\ORMException;
 use GraphQL\Doctrine\DefaultFieldResolver;
+use GraphQL\Doctrine\Helper\Error\InternalError;
+use GraphQL\Doctrine\Helper\Error\PermissionsError;
 use GraphQL\Doctrine\Types;
+use GraphQL\Error\UserError;
 use GraphQL\GraphQL;
 use GraphQL\Server\OperationParams;
 use GraphQL\Server\ServerConfig;
@@ -14,7 +17,7 @@ use GraphQL\Server\StandardServer;
 use GraphQL\Type\Definition\ObjectType;
 use GraphQL\Type\Definition\Type;
 use GraphQL\Type\Schema;
-use GraphQL\Doctrine\Helper\ResolverMethod as Resolver;
+use GraphQL\Doctrine\Helper\ActionMethod as Resolver;
 use League\Container\Container;
 use ReflectionClass;
 use ReflectionException;
@@ -23,62 +26,50 @@ class EntitySchemaBuilder {
 
     const DEFAULT_RESULT_LIMIT = 50;
 
-    /** @var Schema */
-    private $schema;
+    private Schema $schema;
 
-    /** @var string|null */
-    private $userEntity;
+    private ?DoctrineUniqueInterface $user;
 
-    /** @var int */
-    private $resultLimit;
+    private int $resultLimit;
 
-    /** @var EntityManager */
-    private $em;
+    private EntityManager $em;
 
-    /** @var Types */
-    private $types;
-
-    /** @var Permissions|null */
-    private $permissions;
+    private Types $types;
 
     /** @var Mutation[] */
-    private $mutators = [];
+    private array $mutators = [];
 
     /**
      * EntitySchema constructor.
-     * @param EntityManager $em          An instance of the entity manager.
-     * @param array|null    $scopes      An array of scopes' permissions on entity methods
-     * @param string        $userEntity  The class name of the user entity. If this is null, all permissions will be given to all users.
-     * @param int           $resultLimit The maximum amount of results that can be returned by the API.
+     * @param EntityManager $em An instance of the entity manager.
+     * @param array $entities associative array of the plural form of the fully qualified class name of the entity
+     * @param int $resultLimit The maximum amount of results that can be returned by the API.
      */
-    public function __construct(EntityManager $em, ?array $scopes = null, ?string $userEntity = null, int $resultLimit = self::DEFAULT_RESULT_LIMIT) {
+    public function __construct(
+        EntityManager $em,
+        array $entities,
+        int $resultLimit = self::DEFAULT_RESULT_LIMIT
+    ) {
         $types = new Container();
         $types->add('datetime', new DateTimeType());
 
-        $this->userEntity = $userEntity;
-        $this->resultLimit = $resultLimit;
         $this->em = $em;
+        $this->resultLimit = $resultLimit;
         $this->types = new Types($this->em, $types);
-        $this->permissions = $scopes == null ? null : new Permissions($scopes);
+
+        $this->buildSchema($entities);
     }
 
-    public function getServer(array $scopes = [], ?string $userId = null): StandardServer {
+    public function getServer(DoctrineUniqueInterface $user = null, array $context = []): StandardServer {
+        $this->user = $user;
+
         return new StandardServer(ServerConfig::create()
             ->setSchema($this->schema)
-            ->setContext([
-                'scopes' => $scopes,
-                'user'   => $userId,
-            ]));
+            ->setContext($context)
+        );
     }
 
-    /**
-     * Builds the schema, where $entities is an associative array of the plural form to the fully qualified class name of the entity.
-     *
-     * @param array $entities An associative array of the plural form to the fully qualified class name of the entity.
-     * @return self
-     */
-    public function build(array $entities): self {
-
+    private function buildSchema(array $entities): void {
         GraphQL::setDefaultFieldResolver(new DefaultFieldResolver());
 
         $parsedMutators = [];
@@ -98,8 +89,6 @@ class EntitySchemaBuilder {
                     $parsedMutators),
             ]),
         ]);
-
-        return $this;
     }
 
     /**
@@ -116,9 +105,9 @@ class EntitySchemaBuilder {
         return $queries;
     }
 
-    private static  $ID_ARG_DOC = 'Shorthand for a filter for a single ID. You may encounter a 403 response where you do not have permission for a full query against that resource. In this case, you may provide this argument to select an entity you are permitted to access.';
-    private static $LIMIT_ARG_DOC = 'Limits the amount of results returned - %d by default. If you require more results, paginate your requests using limit and offset';
-    private static $OFFSET_ARG_DOC = 'The number of the first record your result set will begin from, inclusive.';
+    private static string $ID_ARG_DOC = 'Shorthand for a filter for a single ID. You may encounter a 403 response where you do not have permission for a full query against that resource. In this case, you may provide this argument to select an entity you are permitted to access.';
+    private static string $LIMIT_ARG_DOC = 'Limits the amount of results returned - %d by default. If you require more results, paginate your requests using limit and offset';
+    private static string $OFFSET_ARG_DOC = 'The number of the first record your result set will begin from, inclusive.';
 
     /**
      * Return a GraphQL list type of entity $entity, with default sorting options and comprehensive Doctrine-compatible sorting.
@@ -169,47 +158,56 @@ class EntitySchemaBuilder {
      * Resolve a simple 'get' query against entity $entity, parsing filtering and sorting as given by listOf().
      * If $only is not provided, then you must provide the query $context.
      *
-     * @param array                        $args   The arguments posted with this query
-     * @param string                       $entity The entity to query against
-     * @param DoctrineUniqueInterface|null $only   Optionally, restrict unfiltered queries to only return this entity.
-     * @param array                        $context
-     * @return mixed If successful, an array of
+     * @param array $args The arguments posted with this query
+     * @param string $entityName The entity classname to query against
+     * @param DoctrineUniqueInterface|null $only Optionally, restrict unfiltered queries to only return this entity.
+     * @param array $context
+     * @return mixed If successful, an array of results
      */
-    public function resolveQuery(array $args, string $entity, ?DoctrineUniqueInterface $only = null, array $context = []) {
+    public function resolveQuery(array $args, string $entityName, ?DoctrineUniqueInterface $only = null, array $context = []) {
 
         if (!empty($only)) {
             $args['id'] = $only->getIdentifier();
-        } else if (count($context) > 0 &&
-            !$this->isPermitted($args, $context, $entity)) {
-            return [403];
         }
 
-        $qb = $this->types->createFilteredQueryBuilder($entity,
+        if (!$this->isPermitted($args, $entityName, $context)) {
+            throw new PermissionsError($entityName);
+        }
+
+        $queryBuilder = $this->types->createFilteredQueryBuilder($entityName,
             $args['filter'] ?? [],
             $args['sorting'] ?? []);
 
-        $query = $qb->select();
-        $params = [];
+        $query = $queryBuilder->select();
 
         if (!empty($args['id'])) {
-            $query->where(
-                $qb->expr()
-                    ->eq($query->getRootAliases()[0] . '.identifier', ':id'));
-            $params['id'] = $args['id'];
+            $query->where($queryBuilder->expr()
+                ->eq($query->getRootAliases()[0] . '.identifier', ':id')
+            );
+            $query->setParameter('id', $args['id']);
         }
 
         $n = $args['limit'] ?? self::DEFAULT_RESULT_LIMIT;
         $offset = $args['offset'] ?? 0;
 
-        foreach ($params as $key => $value) {
-            $query->setParameter($key, $value);
-        }
-
-        $query->getQuery()
+        return $query->getQuery()
             ->setFirstResult($offset)
-            ->setMaxResults($n);
+            ->setMaxResults($n)
+            ->execute();
+    }
 
-        return $query->getQuery()->execute();
+    /**
+     * Wraps getMutators() and generates mutators for all entities in $entities.
+     * @param array $entities An array of entity type class names that the mutators should act upon.
+     * @return array A list of mutator types
+     * @see self::getMutators()
+     */
+    private function generateMutatorsForEntities(array $entities): array {
+        $mutators = [];
+        foreach ($entities as $entity) {
+            $mutators = array_merge($mutators, $this->generateMutatorsForEntity($entity));
+        }
+        return $mutators;
     }
 
     /**
@@ -218,7 +216,7 @@ class EntitySchemaBuilder {
      * @param string $entity The entity type class name that the mutators should act upon.
      * @return array A list of mutator types
      */
-    private function generateMutatorsForEntity(string $entity): array {
+    private function generateMutatorsForEntity(string $entity): ?array {
 
         try {
             $entityName = (new ReflectionClass($entity))->getShortName();
@@ -228,7 +226,7 @@ class EntitySchemaBuilder {
 
         return [
             'create' . $entityName => $this->getMutator($entity, [
-                'input'       => Type::nonNull($this->types->getInput($entity)),
+                'input' => Type::nonNull($this->types->getInput($entity)),
             ], function ($root, $args, $context) use ($entity) {
                 return $this->mutationResolver($args, $context, $entity, Resolver::CREATE);
             }),
@@ -249,36 +247,19 @@ class EntitySchemaBuilder {
     }
 
     /**
-     * Wraps getMutators() and generates mutators for all entities in $entities.
-     * @param array $entities An array of entity type class names that the mutators should act upon.
-     * @return array A list of mutator types
-     * @see self::getMutators()
-     */
-    private function generateMutatorsForEntities(array $entities): array {
-        $mutators = [];
-        foreach ($entities as $entity) {
-            $mutators = array_merge($mutators, $this->generateMutatorsForEntity($entity));
-        }
-        return $mutators;
-    }
-
-    /**
      * Generates a mutator from the provided type, args and resolver. By default, the mutator returns a list type of $entity using listOf().
      *
-     * @param string      $entity   The entity which the mutator acts against
-     * @param array       $args     An array of args that this mutator will possess
-     * @param callable    $resolver A callable resolver in the format function($root, $args)
+     * @param string $entityName The entity which the mutator acts against
+     * @param array $args An array of args that this mutator will possess
+     * @param callable $resolver A callable resolver in the format function($root, $args)
      * @param string|null $description
-     * @param Type|null   $type     If specified, a type that will override the default given above
+     * @param Type|null $type If specified, a type that will override the default given above
      *
      * @return array The mutator type
      */
-    public function getMutator(string $entity, array $args, callable $resolver, ?string $description = null, ?Type $type = null): array {
-        if (empty($type)) {
-            $type = Type::listOf($this->types->getOutput($entity));
-        }
+    public function getMutator(string $entityName, array $args, callable $resolver, ?string $description = null, ?Type $type = null): array {
         return [
-            'type'        => $type,
+            'type'        => $type ?? Type::listOf($this->types->getOutput($entityName)),
             'args'        => $args,
             'resolve'     => $resolver,
             'description' => $description ?? '',
@@ -286,142 +267,108 @@ class EntitySchemaBuilder {
     }
 
     /**
-     * @param array  $args
-     * @param array  $context
-     * @param string $entity
+     * @param array $args
+     * @param string $entityName
+     * @param array $context
      * @param string $method
      * @return bool
      */
-    public function isPermitted(array $args, array $context, string $entity, string $method = 'GET'): bool {
-
-        if ($context['user'] == null ||
-            $context['scopes'] == null ||
-            $this->userEntity == null ||
-            $this->permissions == null) {
+    public function isPermitted(array $args, string $entityName, array $context, string $method = Resolver::GET): bool {
+        if ($this->user === null) {
             return true;
         }
 
-        $permitted = false;
-        foreach ($context['scopes'] as $scope) {
-            switch ($this->permissions->getPermission($scope, $entity, $method)) {
-
-                case PermissionLevel::ALL:
-                    $permitted = true;
-                    break;
-
-                case PermissionLevel::PERMISSIVE:
-                    /** @var GraphQLEntity $entityObject */
-                    $entityObject = $this->em->getRepository($entity)->find($args['id']);
-                    /** @var ApiUserInterface $user */
-                    $user = $this->em->getRepository($this->userEntity)->find($context['user']);
-
-                    $permitted = $entityObject->hasPermission($this->em, $user);
-                    break;
-
-                case PermissionLevel::NONE:
-                    break;
-            }
-
-            if ($permitted) {
-                break;
-            }
-        }
-
-        return $permitted;
+        /** @var GraphQLEntity $entity */
+        $entity = $this->em->getRepository($entityName)
+            ->find($args['id']);
+        return $entity->hasPermission($this->em, $this->user, $context, $method);
     }
 
     /**
      * Dispatches mutations to the appropriate resolver for their $method.
      *
-     * @param array  $args
-     * @param array  $context
-     * @param string $entity
+     * @param array $args
+     * @param array $context
+     * @param string $entityName
      * @param string $method
      * @return mixed
-     * @throws ORMException
-     * @throws OptimisticLockException
+     * @throws ORMException|OptimisticLockException|UserError|InternalError
      */
-    private function mutationResolver(array $args, array $context, string $entity, string $method) {
+    private function mutationResolver(array $args, array $context, string $entityName, string $method) {
 
-        if (!$this->isPermitted($args, $context, $entity, $method)) {
-            return [403];
+        if (!$this->isPermitted($args, $entityName, $context, $method)) {
+            throw new PermissionsError($entityName, $method);
         }
 
         switch ($method) {
-            case 'create':
-                return $this->createResolver($args, $entity);
-                break;
-
-            case 'update':
-                return $this->updateResolver($args, $entity);
-                break;
-
-            case 'delete':
-                return $this->deleteResolver($args, $entity);
-                break;
+            case ActionMethod::CREATE:
+                return $this->createResolver($args, $entityName);
+            case ActionMethod::UPDATE:
+                return $this->updateResolver($args, $entityName);
+            case ActionMethod::DELETE:
+                return $this->deleteResolver($args, $entityName);
+            default:
+                throw new InternalError('Invalid action %s on entity %s', $method, $entityName);
         }
-
-        return [400];
     }
 
     /**
      * Calls $entity::buildFromJson and persists the result, where $entity is the class name of a GraphQLConstructableInterface, and then resolves the rest of the query.
      *
-     * @param array  $args   The query args from the calling mutator
-     * @param string $entity The entity which the resolver acts against
+     * @param array $args The query args from the calling mutator
+     * @param string $entityName The entity which the resolver acts against
      *
      * @return mixed The rest of the query, resolved
      * @throws ORMException
      * @throws OptimisticLockException
      */
-    private function createResolver(array $args, string $entity) {
+    private function createResolver(array $args, string $entityName) {
 
         /** @var GraphQLEntity $new */
-        $new = call_user_func($entity . '::buildFromJson', $this->em, $args['input']);
+        $new = call_user_func($entityName . '::buildFromJson', $this->em, $args['input']);
 
         $this->em->persist($new);
         $this->em->flush();
 
-        return $this->resolveQuery($args, $entity, $new);
+        return $this->resolveQuery($args, $entityName, $new);
     }
 
     /**
      * Calls $entity::updateFromJson and persists the result, where $entity is the class name of a GraphQLEntity, and then resolves the rest of the query.
      *
-     * @param array  $args   The query args from the calling mutator
-     * @param string $entity The entity which the resolver acts against
+     * @param array $args The query args from the calling mutator
+     * @param string $entityName The entity which the resolver acts against
      *
      * @return mixed The rest of the query, resolved
-     * @throws ORMException
-     * @throws OptimisticLockException
+     * @throws ORMException|OptimisticLockException|InternalError
      */
-    private function updateResolver(array $args, string $entity) {
+    private function updateResolver(array $args, string $entityName) {
 
-        /** @var GraphQLEntity $update */
-        $update = $this->em->getRepository($entity)->find($args['id']);
+        /** @var GraphQLEntity $entity */
+        $entity = $this->em->getRepository($entityName)
+            ->find($args['id']);
 
-        $update->beforeUpdate($this->em, $args);
+        $entity->beforeUpdate($this->em, $args);
 
-        $update->hydrate($this->em, $args['input'], $entity, true);
+        $entity->hydrate($this->em, $args['input'], $entityName, true);
 
         $this->em->flush();
 
-        return $this->resolveQuery($args, $entity, $update);
+        return $this->resolveQuery($args, $entityName, $entity);
     }
 
     /**
      * Removes entity $entity and returns its ID.
      *
-     * @param array  $args   The query args from the calling mutator
-     * @param string $entity The entity which the resolver acts against
+     * @param array $args The query args from the calling mutator
+     * @param string $entityName The entity which the resolver acts against
      * @return mixed
      * @throws ORMException
      * @throws OptimisticLockException
      */
-    private function deleteResolver(array $args, string $entity) {
-
+    private function deleteResolver(array $args, string $entityName) {
         /** @var GraphQLEntity $condemned */
-        $condemned = $this->em->getRepository($entity)->find($args['id']);
+        $condemned = $this->em->getRepository($entityName)->find($args['id']);
 
         $condemned->beforeDelete($this->em, $args);
 
@@ -431,43 +378,33 @@ class EntitySchemaBuilder {
         return $args['id'];
     }
 
-    /**
-     * @param string|null $userEntity
-     */
-    public function setUserEntity(?string $userEntity): void {
-        $this->userEntity = $userEntity;
-    }
-
-    /**
-     * @param int $resultLimit
-     */
-    public function setResultLimit(int $resultLimit): void {
-        $this->resultLimit = $resultLimit;
-    }
-
-    /**
-     * @return Schema
-     */
     public function getSchema(): Schema {
         return $this->schema;
     }
 
-    /**
-     * @return Types
-     */
     public function getTypes(): Types {
         return $this->types;
     }
 
+    public function getUser(): DoctrineUniqueInterface {
+        return $this->user;
+    }
+
+    /**
+     * Generate a blank mutation pre-associated with this builder
+     *
+     * @param string $name
+     * @return Mutation
+     */
     public function mutation(string $name): Mutation {
         $mutation = new Mutation($this, $name);
         $this->mutators[$name] = $mutation;
         return $mutation;
     }
-    
+
     public static function jsonToOperation(array $json): OperationParams {
         return OperationParams::create([
-            'query' => $json['query'],
+            'query'     => $json['query'],
             'variables' => $json['variables'] ?? null,
         ]);
     }

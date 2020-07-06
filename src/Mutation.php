@@ -2,39 +2,29 @@
 
 namespace GraphQL\Doctrine\Helper;
 
-use GraphQL\Doctrine\Types;
+use GraphQL\Doctrine\Helper\Error\PermissionsError;
 use GraphQL\Type\Definition\Type;
 
 class Mutation {
 
-    const DEFAULT_METHOD = ResolverMethod::UPDATE;
+    const DEFAULT_METHOD = ActionMethod::UPDATE;
 
-    /** @var string */
-    private $name;
+    private string $name;
 
-    /** @var string */
-    private $entity;
+    private string $entity;
 
     /** @var callable */
     private $resolver;
 
-    /** @var Type|null */
-    private $type;
+    private ?Type $type;
 
-    /** @var array */
-    private $args = [];
+    private array $args = [];
 
-    /** @var EntitySchemaBuilder */
-    private $builder;
+    private EntitySchemaBuilder $builder;
 
-    /** @var string */
-    private $method;
+    private string $method;
 
-    /** @var string|null */
-    private $description;
-
-    /** @var bool */
-    private $permissions = true;
+    private ?string $description;
 
     /**
      * Mutation constructor
@@ -55,20 +45,31 @@ class Mutation {
      * @param string|null $method
      * @param array       $args
      * @param string|null $description
-     * @param bool        $permissions
      */
-    public function hydrate(string $entity, callable $resolver, ?Type $type = null, ?string $method = null, array $args = [], ?string $description = null, bool $permissions = true) {
+    public function hydrate(
+        string $entity,
+        callable $resolver,
+        ?Type $type = null,
+        ?string $method = null,
+        array $args = [],
+        ?string $description = null
+    ) {
         $this->entity = $entity;
         $this->resolver = $resolver;
         $this->type = $type ?? Type::listOf($this->builder->getTypes()->getOutput($entity));
         $this->method = $method ?? self::DEFAULT_METHOD;
         $this->args = $args;
         $this->description = $description;
-        $this->permissions = $permissions;
     }
 
     public function getMutator(): array {
-        return $this->builder->getMutator($this->entity, $this->args, $this->getResolver(), $this->description, $this->type);
+        return $this->builder->getMutator(
+            $this->entity,
+            $this->args,
+            $this->getResolver(),
+            $this->description,
+            $this->type,
+        );
     }
 
     /**
@@ -126,11 +127,11 @@ class Mutation {
     }
 
     /**
-     * @param bool $permissions
+     * @param string $method
      * @return self
      */
-    public function usePermissions(bool $permissions): self {
-        $this->permissions = $permissions;
+    public function setMethod(string $method): self {
+        $this->method = $method;
         return $this;
     }
 
@@ -147,13 +148,11 @@ class Mutation {
     public function getResolver(): callable {
         return function ($root, $args, $context) {
 
-            if ($this->permissions) {
-                if (!$this->builder->isPermitted($args, $context, $this->entity, $this->method)) {
-                    return [403];
-                }
+            if (!$this->builder->isPermitted($args, $this->entity, $context, $this->method)) {
+                throw new PermissionsError($this->entity);
             }
 
-            return ($this->resolver)($args, $context['user']);
+            return ($this->resolver)($args, $this->builder->getUser());
         };
     }
 

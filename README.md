@@ -9,85 +9,58 @@ composer install guym4c/doctrine-graphql-helper
 ```
 
 ## Usage
-This package is a helper package for [`graphql-php`](https://github.com/webonyx/graphql-php) and [`graphql-doctrine`](https://github.com/ecodev/graphql-doctrine), which install automatically with it. Entities used with this package must be `graphql-doctrine`-compatible. Refer to these packages’ documentation for more details.
+This package is a helper package for [`graphql-php`](https://github.com/webonyx/graphql-php) and [`graphql-doctrine`](https://github.com/ecodev/graphql-doctrine), which install automatically with it. Entities used with this package must be [`graphql-doctrine`](https://github.com/ecodev/graphql-doctrine) -compatible. Refer to these packages’ documentation for more details.
 
-### `GraphQLEntity`
+### Implementing `GraphQLEntity`
 Any entities which you wish to use in your API must extend `GraphQLEntity` and implement the required methods.
 
-#### Entity constructors
-When an entity is created over GraphQL using a create mutator, it is constructed using `buildFromJson()`, which in turn calls the `hydrate()` method. If your entity has a constructor with parameters, then you will need to override `buildFromJson()` in your entity class and call the constructor yourself. You may still use `hydrate()` after this call, but remember to unset any fields that you have already hydrated from the (JSON) array before you make this call or they will be overwritten.
-
-#### Events
-In addition to the events that Doctrine provides, the schema builder adds events that fire during the execution of some resolvers: `beforeUpdate()` and `beforeDelete()`. You may extend these from `GraphQLEntity`. Both fire immediately after the entity in its initial state is retrieved from Doctrine, and before any operation is performed. (For `beforeDelete()` in particular, these means all fields, including generated values, are accessible.)
-
-### Building the schema
-Construct a schema builder on entities of your choice. You must provide an instance of the Doctrine entity manager:
+You probably won't want any methods you implement to be added to the schema by `graphql-doctrine`, and so you must annotate them as excluded:
 ```php
-$builder = new EntitySchemaBuilder($em);
+use GraphQL\Doctrine\Annotation as API;
+
+/**
+ * @API\Exclude
+ */
+public function someMethod() {}
 ```
 
-You may then build the schema from an associative array where the key is the plural form of the entity's name, and the value is the class name of the entity. For example:
+#### Entity constructors
+When an entity is created over GraphQL using a create mutator, it is constructed using the `buildFromJson()` static, which calls the constructor with no parameters. If your entity has a constructor with parameters, then you will need to override `buildFromJson()` in your entity class and call the constructor yourself.
+
+After you've performed any tasks you need to, you may still use the inherited `hydrate()` call after this to fill out the object with the input data. You must unset any properties that you have already hydrated yourself from the input array `$data` before you make this call, or your existing properties will be overwritten.
+
+#### Events
+In addition to the events that Doctrine provides you with, the schema builder adds events that fire during the execution of some resolvers: `beforeUpdate()` and `beforeDelete()`. You may extend these from `GraphQLEntity`. Both fire immediately after the entity in its initial state is retrieved from the ORM, and before any operation is performed. (For `beforeDelete()` in particular, these means all fields, including generated values, are accessible.)
+
+#### Permissions
+You always need to implement `hasPermission()`, regardless of whether you intend to implement permissions at this level or not. You can find more details on implementing permissions below, or just stub it out with a `return true;` for the moment. For security reasons, the builder does not default to this.
+
+### Building the schema
+Construct a schema builder on entities of your choice. You must provide an instance of the Doctrine entity manager, and an associative array where the key is the plural form of the entity's name, and the value is the fully-qualified class name of the entity definition. For example:
 ```php
-$schema = $builder->build([
-    'users' => User::class,
+$builder = new EntitySchemaBuilder($em, [
+    'owners' => Owner::class,
     'dogs'  => Dog::class,
     'cats'  => Cat::class,
 ]);
 ```
 
-Note that `getSchema()` does not build the schema, but retrieves the most recently built schema.
-
-### Setting permissions
-If you wish to use permissions, you may also provide the EntitySchemaBuilder constructor with:
-
-* An array of scopes and the permissions on methods acting upon them (example below)
-* The class name of the user entity, which must implement ApiUserInterface
-
 ### Running queries
-You may use your built schema in a GraphQL server of your choice, or use the helper’s integration with `graphql-php` to retrieve a server object already set up with your schema and any permissions settings you have defined by calling `getServer()`.
+You may use your built schema in a GraphQL server of your choice, or use the helper’s integration with `graphql-php` to retrieve a server object already set up with your schema by calling `getServer()`.
 
-The server object returned accepts a request object in its `executeRequest()` method. In some cases you may wish to run a JSON payload through the server - to do this you can parse the JSON to a format which the server will accept as a parameter to `executeRequest()` by calling `EntitySchemaBuilder::jsonToOperation($json)`.
+The server returned accepts a request object in its `executeRequest()` method. In some cases you may wish to run a raw JSON payload through the server. To do this, can parse the JSON to a format which the server will accept as a parameter to `executeRequest()` by calling `EntitySchemaBuilder::jsonToOperation($json)`.
 
 ### Using permissions
-If you have set the schema builder’s permissions during instantiation, provide the permitted scopes (as an array) and the user’s identifier to the `getServer()` method to execute the query with permissions enabled.
-The schema generator generates four queries for each provided entity, which have parallels to the HTTP request methods used in REST: a simple `GET` query, and `POST` (create), `UPDATE` and `DELETE` mutators. You may define the permissions at method-level granularity using the scopes array, provided to the builder’s constructor.
-
-For example:
-
+Permissions are managed using the handler you implemented when extending `GraphQLEntity`. The `hasPermission()` handler is passed 4 parameters to help you implement this:
 ```php
-$scopes = [
-    'admin' => ['*'],
-    'vet' => [
-        'dog' => [
-            'get' => 'all',
-            'update' => 'all',
-        ],
-        'cat' => [
-            'get' => 'all',
-            'update' => 'all',
-        ],
-        'user' => [
-            'get' => 'permissive',
-            'update' => 'permissive',
-        ],
-    ],
-    'dog-owner' => [
-        'dog' => [
-            'get' => 'permissive',
-            'update' => 'permissive',
-        ],
-    ],
-
-    // etc.
-];
+abstract public function hasPermission(
+    EntityManager $em, // an instance of the entity manager
+    DoctrineUniqueInterface $user, // the user you passed to getServer()
+    array $context, // array of additional context you optionally passed to getServer()
+    string $method // action method verb
+): bool;
 ```
-
-An asterisk (\*) is a wildcard, indicating full permissions are given for this scope. Otherwise, each entity is assigned a permission on a per-method basis. Methods and entities without defined permissions will be assumed to be accessible to all users. Each method may be assigned one of three values:
-
-* **All:** Accessible to all users with this scope
-* **None:** Not accessible to users with this scope
-* **Permissive:**	Users permissions with this scope are resolved in the entity’s `hasPermission()` method. If you don’t wish to use permissive, but are running the server with permissions enabled, simply implement the method with a return true. 
-The `hasPermission()` method is called for all methods that are defined as permissive, and you are passed an instance of the Doctrine entity manager and an instance of your API user class as `ApiUserInterface`.
+The `method` corresponds to the action verb assigned to the currently executing query or mutation. The generated queries and mutators use pre-set CRUD-like verbs: `get`, `create`, `update` and `delete`, but you can use any verb you choose when writing your own mutators.
 
 ## Using custom mutators
 The schema generator exposes a simple API for adding your own mutators, and a class (`Mutation`). This wraps some advanced functionality of graphql-doctrine, and so reference to that package’s documentation may or will be required using this feature.
@@ -101,11 +74,11 @@ There are two methods of hydrating the new `Mutation` returned by the factory: u
 
 **`setDescription()`:**	Set a description returned by the server in introspection queries (optional).
 
-**`setArgs()`:**	Set the arguments that may be given when this mutator is queried. By default, this is a non-null (required) ID type, allowing you to retrieve the entity that ID refers to using the entity manager.
+**`setArgs()`:** Set the arguments that may be given when this mutator is queried. By default, this is a non-null (required) ID type, allowing you to retrieve the entity that the ID refers to using the entity manager.
 
-**`usePermissions()`:**	It is expected that you will implement your own permissions check in your resolver, but as a fallback you may hook in to the helper’s permissions system by setting `usePermissions()` to `true` and giving a valid query method to `setMethod()`. The helper will then use the permission level assigned to the `Mutation`’s set entity and provided method using the scopes of the request. 
+**`setMethod()`:** Set the action verb that this mutator uses for permissions purposes.
 
-**`setResolver()`:**	You must provide a callable here that takes two arguments – an array of your mutator’s args and the user ID of the user making the request. You must return the data that you wish to be returned with the response to the query, and that data must of the correct type – methods that can assist with this are provided in `EntitySchemaBuilder`, and it is suggested that you define this callable in a variable scope where you have access to it and the entity manager. Failure to resolve data of the correct type will result in the server returning 500.
+**`setResolver()`:**	You must provide a callable here that takes two arguments – an array of your mutator’s args and the API user making the request. You must return the data that you wish to be returned with the response to the query, and that data must of the correct type – methods that can assist with this are provided in `EntitySchemaBuilder`, and it is suggested that you define this callable in a variable scope where you have access to it and the entity manager. Failure to resolve data of the correct type will result in the server returning an error.
 
 ## Methods exposed by the builder
 The schema builder exposes a variety of methods which may be of use when writing resolver functions. You may wish to consult the documentation of `graphql-php` and `graphql-doctrine` for more information on the values that some of these methods return.
@@ -116,18 +89,10 @@ The schema builder exposes a variety of methods which may be of use when writing
 
 **`getMutator()`:**	Generates a mutator (in its array form, not a `Mutation`) from the provided type, args and resolver.  
 
-**`setUserEntity()`:** Changes the user entity class name from that given during instantiation.
+**`setUserEntity()`:** Changes the user from that given during instantiation.
 
-**`getTypes()`:** Retrieve the types generated by `graphql-doctrine` from the entities provided during the most recent `build()`. 
+**`getTypes()`:** Retrieve the types that have been generated for use in the schema.
 
-**`isPermitted()`:** Resolves the permission level of a query, given its args, query context and entity class name. The query context is a value used internally by the schema builder and is an associative array of the following format: 
-
-```php
-$context = [
-    'scopes' => [],// array of this request's scopes
-    'user'   => '',// user ID
-];
-```
-
+**`isPermitted()`:** Resolves the permission level of a query, given its args, query context and entity class name.
 
 

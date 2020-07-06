@@ -19,6 +19,7 @@
         }
     },
     "require": {
+        "php": "^7.4",
         "webonyx/graphql-php": "^0.13.0",
         "ecodev/graphql-doctrine": "^6.1",
         "myclabs/php-enum": "^1.6",
